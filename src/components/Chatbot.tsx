@@ -196,7 +196,72 @@ export function Chatbot() {
     return "Thank you for your feedback! We've received it and will review it soon. You can track its progress in the Complaints tab.";
   };
 
-  const processUserInput = async (userInput: string) => {
+  const buildMenuContext = () => {
+    if (menuItems.length === 0) {
+      return 'No menu items are currently available for the upcoming week.';
+    }
+
+    const uniqueDates = [...new Set(menuItems.map(item => item.date))].sort();
+    const lines: string[] = [];
+
+    uniqueDates.forEach(date => {
+      const dateObj = new Date(date);
+      const dayName = dateObj.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'short',
+        day: 'numeric',
+      });
+      lines.push(`${dayName}:`);
+
+      const dayItems = menuItems
+        .filter(item => item.date === date)
+        .sort((a, b) => a.meal_type.localeCompare(b.meal_type));
+
+      dayItems.forEach(item => {
+        lines.push(`- ${formatMenuItem(item)}`);
+      });
+    });
+
+    return lines.join('\n');
+  };
+
+  const getGeminiResponse = async (userInput: string) => {
+    const prompt = `You are the mess menu assistant for a student dashboard.
+Use the menu data and provide concise, friendly responses.
+If the user wants to submit feedback or a complaint, instruct them to start with "Submit:" followed by their feedback.
+If asked about menus, respond using the menu data only.
+If the menu data is missing for a request, say it is not available yet.
+
+Menu data:
+${buildMenuContext()}
+
+User question: ${userInput}`;
+
+    const response = await fetch('/api/gemini', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gemini API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const text = data?.text;
+
+    if (!text) {
+      throw new Error('Gemini response was empty');
+    }
+
+    return text.trim();
+  };
+
+  const processDeterministicInput = async (userInput: string) => {
     const input = userInput.toLowerCase().trim();
 
     if (input.includes('feedback') || input.includes('complaint') || input.includes('issue')) {
@@ -244,6 +309,25 @@ export function Chatbot() {
     }
 
     return "I'm not sure I understood that. Try asking about:\n• Today's menu\n• A specific meal (breakfast, lunch, evening snacks, dinner)\n• This week's menu\n• Submitting feedback\n\nOr type 'help' to see what I can do!";
+  };
+
+  const processUserInput = async (userInput: string) => {
+    const input = userInput.toLowerCase().trim();
+
+    if (input.startsWith('submit:')) {
+      const feedbackText = userInput.slice(7).trim();
+      if (!feedbackText) {
+        return "Please provide your feedback after 'Submit:'";
+      }
+      return await submitFeedback(feedbackText);
+    }
+
+    try {
+      return await getGeminiResponse(userInput);
+    } catch (error) {
+      console.error('Gemini API failed, falling back to deterministic flow.', error);
+      return await processDeterministicInput(userInput);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
