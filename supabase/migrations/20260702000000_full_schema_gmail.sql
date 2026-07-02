@@ -85,22 +85,29 @@ CREATE POLICY "Anyone can view menu items"
   USING (true);
 
 DROP POLICY IF EXISTS "Authenticated can insert menu items" ON public.menu_items;
-CREATE POLICY "Authenticated can insert menu items"
+DROP POLICY IF EXISTS "Admins can insert menu items" ON public.menu_items;
+CREATE POLICY "Admins can insert menu items"
   ON public.menu_items FOR INSERT
   TO authenticated
-  WITH CHECK (auth.uid() = created_by);
+  WITH CHECK (
+    auth.uid() = created_by
+    AND EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.is_admin)
+  );
 
 DROP POLICY IF EXISTS "Authenticated can update menu items" ON public.menu_items;
-CREATE POLICY "Authenticated can update menu items"
+DROP POLICY IF EXISTS "Admins can update menu items" ON public.menu_items;
+CREATE POLICY "Admins can update menu items"
   ON public.menu_items FOR UPDATE
   TO authenticated
-  USING (true) WITH CHECK (true);
+  USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.is_admin))
+  WITH CHECK (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.is_admin));
 
 DROP POLICY IF EXISTS "Authenticated can delete menu items" ON public.menu_items;
-CREATE POLICY "Authenticated can delete menu items"
+DROP POLICY IF EXISTS "Admins can delete menu items" ON public.menu_items;
+CREATE POLICY "Admins can delete menu items"
   ON public.menu_items FOR DELETE
   TO authenticated
-  USING (true);
+  USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.is_admin));
 
 -- ---------- FEEDBACK ----------
 CREATE TABLE IF NOT EXISTS public.feedback (
