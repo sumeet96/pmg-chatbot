@@ -58,8 +58,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signUp = async (email: string, password: string) => {
-    if (!email.endsWith('@astra.xlri.ac.in')) {
-      throw new Error('Email must be from astra.xlri.ac.in domain');
+    if (!email.endsWith('@gmail.com')) {
+      throw new Error('Email must be from gmail.com domain');
     }
 
     const { error } = await supabase.auth.signUp({

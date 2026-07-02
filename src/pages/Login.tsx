@@ -85,7 +85,7 @@ export function Login() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   autoComplete="email"
-                  placeholder="student@astra.xlri.ac.in"
+                  placeholder="student@gmail.com"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-navy-900 focus:border-transparent transition-all duration-200 outline-none"
                   aria-required="true"
                   aria-invalid={error ? 'true' : 'false'}
@@ -94,7 +94,7 @@ export function Login() {
                 />
                 {!isLogin && (
                   <p id="email-hint" className="mt-1 text-xs text-gray-500">
-                    Must use your @astra.xlri.ac.in email address
+                    Must use your @gmail.com email address
                   </p>
                 )}
               </div>
@@ -150,7 +150,7 @@ export function Login() {
         </div>
 
         <p className="text-center text-white text-sm mt-6 opacity-90">
-          Use your @astra.xlri.ac.in email to access the mess menu system
+          Use your @gmail.com email to access the mess menu system
         </p>
       </div>
     </div>
