@@ -12,6 +12,10 @@ interface Message {
   timestamp: Date;
 }
 
+// The model appends this marker (only after the user confirms) to signal that
+// a complaint should be logged. It is parsed out and never shown to the user.
+const FEEDBACK_MARKER = '[[LOG_FEEDBACK]]';
+
 export function Chatbot({
   supabaseClient = supabase,
   disableDataLoad = false,
@@ -172,7 +176,7 @@ export function Chatbot({
     return response;
   };
 
-  const submitFeedback = async (feedbackText: string) => {
+  const logComplaint = async (feedbackText: string): Promise<boolean> => {
     // Extract title and description from feedback text
     const sentences = feedbackText.match(/[^.!?]+[.!?]+/g);
     let title: string;
@@ -210,11 +214,18 @@ export function Chatbot({
 
     if (error) {
       console.error('Error submitting complaint:', error);
-      return "Sorry, there was an error submitting your feedback. Please try again.";
+      return false;
     }
 
     window.dispatchEvent(new CustomEvent('complaint-submitted'));
+    return true;
+  };
 
+  const submitFeedback = async (feedbackText: string) => {
+    const ok = await logComplaint(feedbackText);
+    if (!ok) {
+      return "Sorry, there was an error submitting your feedback. Please try again.";
+    }
     return "Thank you for your feedback! We've received it and will review it soon. You can track its progress in the Complaints tab.";
   };
 
@@ -247,26 +258,63 @@ export function Chatbot({
     return lines.join('\n');
   };
 
+  const buildSystemInstruction = () => {
+    const today = new Date().toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    return `You are the friendly mess menu assistant for a student hostel dashboard.
+
+What you do:
+- Answer questions about the mess menu using ONLY the menu data below. If a dish or day isn't in the data, say it's not available yet — never invent menu items.
+- Chat naturally. Understand casual language, slang, and reactions to the food.
+- Help students raise feedback or complaints about the food or mess.
+
+Handling feedback and complaints:
+- If a student expresses dissatisfaction or complains about the food/mess (even casually, e.g. "this is terrible" or "that's a hot pile of shit"), reply with brief empathy and ASK whether they'd like you to log it as feedback to the mess team. Do NOT log anything yet.
+- Only AFTER the student clearly confirms (e.g. "yes", "sure", "please do", "go ahead"), append EXACTLY this on a new final line:
+${FEEDBACK_MARKER} <one concise sentence describing their complaint>
+- Never mention, explain, or show that marker to the student, and only include it once they've confirmed.
+
+Style: concise, warm, and helpful. A little personality is welcome.
+
+Today is ${today}.
+
+Menu data (upcoming week):
+${buildMenuContext()}`;
+  };
+
+  const buildHistory = (): { role: 'user' | 'model'; text: string }[] => {
+    const mapped = messages
+      .filter((m) => m.text && m.text.trim())
+      .map((m) => ({
+        role: (m.sender === 'user' ? 'user' : 'model') as 'user' | 'model',
+        text: m.text,
+      }));
+
+    // Keep the last few turns for context, trimming any leading bot turns so the
+    // conversation history starts on a user message.
+    const recent = mapped.slice(-10);
+    let start = 0;
+    while (start < recent.length && recent[start].role === 'model') start++;
+    return recent.slice(start);
+  };
+
   const getGeminiResponse = async (userInput: string) => {
-    const prompt = `You are the mess menu assistant for a student dashboard.
-Use the menu data and provide concise, friendly responses.
-If the user wants to submit feedback or a complaint, instruct them to start with "Submit:" followed by their feedback.
-If asked about menus, respond using the menu data only.
-If the menu data is missing for a request, say it is not available yet.
-
-Menu data:
-${buildMenuContext()}
-
-User question: ${userInput}`;
+    const payload = {
+      systemInstruction: buildSystemInstruction(),
+      messages: [...buildHistory(), { role: 'user', text: userInput }],
+    };
 
     const response = await fetch('/api/gemini', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        prompt,
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -281,6 +329,30 @@ User question: ${userInput}`;
     }
 
     return text.trim();
+  };
+
+  // If the model appended the feedback marker (after the user confirmed), log the
+  // complaint and strip the marker from the reply the user actually sees.
+  const handleGeminiText = async (raw: string) => {
+    const idx = raw.indexOf(FEEDBACK_MARKER);
+    if (idx === -1) {
+      return raw;
+    }
+
+    const display = raw.slice(0, idx).trim();
+    const feedbackText = raw.slice(idx + FEEDBACK_MARKER.length).trim();
+
+    if (feedbackText) {
+      const ok = await logComplaint(feedbackText);
+      if (!ok) {
+        return (
+          (display ? display + '\n\n' : '') +
+          "I couldn't save that just now — please try again or use the Complaints tab."
+        );
+      }
+    }
+
+    return display || "Done — I've logged your feedback with the mess team. Thanks!";
   };
 
   const processDeterministicInput = async (userInput: string) => {
@@ -345,7 +417,8 @@ User question: ${userInput}`;
     }
 
     try {
-      return await getGeminiResponse(userInput);
+      const raw = await getGeminiResponse(userInput);
+      return await handleGeminiText(raw);
     } catch (error) {
       console.error('Gemini API failed, falling back to deterministic flow.', error);
       return await processDeterministicInput(userInput);

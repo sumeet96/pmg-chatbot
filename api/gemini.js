@@ -5,10 +5,33 @@ export default async function handler(req, res) {
   }
 
   const apiKey = process.env.GOOGLE_API_KEY;
-  const prompt = typeof req.body?.prompt === 'string' ? req.body.prompt.trim() : '';
-
   if (!apiKey) return res.status(500).json({ error: 'GOOGLE_API_KEY is not configured on the server.' });
-  if (!prompt) return res.status(400).json({ error: 'Prompt is required.' });
+
+  const body = req.body || {};
+
+  // Build conversation turns from either a messages array (multi-turn) or a single prompt.
+  let contents = [];
+  if (Array.isArray(body.messages)) {
+    contents = body.messages
+      .filter((m) => m && typeof m.text === 'string' && m.text.trim())
+      .map((m) => ({
+        role: m.role === 'model' ? 'model' : 'user',
+        parts: [{ text: m.text.trim() }],
+      }));
+  } else if (typeof body.prompt === 'string' && body.prompt.trim()) {
+    contents = [{ role: 'user', parts: [{ text: body.prompt.trim() }] }];
+  }
+
+  if (contents.length === 0) return res.status(400).json({ error: 'A prompt or messages array is required.' });
+
+  const payload = {
+    contents,
+    generationConfig: { temperature: 0.5 },
+  };
+
+  if (typeof body.systemInstruction === 'string' && body.systemInstruction.trim()) {
+    payload.systemInstruction = { parts: [{ text: body.systemInstruction.trim() }] };
+  }
 
   try {
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
@@ -16,10 +39,7 @@ export default async function handler(req, res) {
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.4 },
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) return res.status(response.status).json({ error: `Gemini API error: ${response.status}` });
