@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Calendar, MessageSquare, UtensilsCrossed, CalendarDays } from 'lucide-react';
 import { MenuForm } from '../components/MenuForm';
+import { WeeklyMenuForm } from '../components/WeeklyMenuForm';
 import { MenuList } from '../components/MenuList';
 import { ComplaintsAdmin } from '../components/ComplaintsAdmin';
 import { MenuCalendar } from '../components/MenuCalendar';
@@ -13,6 +14,7 @@ export function AdminDashboard() {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('menu');
+  const [menuMode, setMenuMode] = useState<'single' | 'weekly'>('single');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleSignOut = async () => {
@@ -109,14 +111,46 @@ export function AdminDashboard() {
           aria-labelledby="menu-tab"
           hidden={activeTab !== 'menu'}
         >
-          <div className="grid lg:grid-cols-2 gap-6">
-            <div>
-              <MenuForm onSuccess={handleMenuSuccess} />
+          <div className="mb-6 inline-flex gap-1 bg-white p-1 rounded-lg shadow-sm">
+            <button
+              type="button"
+              onClick={() => setMenuMode('single')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                menuMode === 'single'
+                  ? 'bg-navy-900 text-white'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              Single Item
+            </button>
+            <button
+              type="button"
+              onClick={() => setMenuMode('weekly')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                menuMode === 'weekly'
+                  ? 'bg-navy-900 text-white'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              Weekly Menu
+            </button>
+          </div>
+
+          {menuMode === 'single' ? (
+            <div className="grid lg:grid-cols-2 gap-6">
+              <div>
+                <MenuForm onSuccess={handleMenuSuccess} />
+              </div>
+              <div>
+                <MenuList refreshTrigger={refreshTrigger} />
+              </div>
             </div>
-            <div>
+          ) : (
+            <div className="space-y-6">
+              <WeeklyMenuForm onSuccess={handleMenuSuccess} />
               <MenuList refreshTrigger={refreshTrigger} />
             </div>
-          </div>
+          )}
         </div>
 
         <div
