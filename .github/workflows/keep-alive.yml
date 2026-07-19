@@ -1,0 +1,16 @@
+name: Supabase Keep Alive
+
+on:
+  schedule:
+    - cron: '0 0 * * 0,3'   # runs Sunday and Wednesday at 00:00 UTC
+  workflow_dispatch:         # lets you trigger it manually to test
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        run: |
+          curl -s -X GET "https://YOUR-PROJECT-REF.supabase.co/rest/v1/YOUR_TABLE_NAME?select=id&limit=1" \
+          -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+          -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"
