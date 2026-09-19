@@ -53,10 +53,11 @@ export function MenuList({ refreshTrigger }: MenuListProps) {
     return grouped;
   };
 
-  const mealOrder = { breakfast: 1, lunch: 2, dinner: 3 };
-  const mealLabels = {
+  const mealOrder: Record<string, number> = { breakfast: 1, lunch: 2, evening_snacks: 3, dinner: 4 };
+  const mealLabels: Record<string, string> = {
     breakfast: 'Breakfast',
     lunch: 'Lunch',
+    evening_snacks: 'Evening Snacks',
     dinner: 'Dinner',
   };
 

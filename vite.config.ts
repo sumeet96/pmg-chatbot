@@ -9,7 +9,10 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': 'http://localhost:3001',
+      '/api': {
+        target: process.env.VITE_API_URL || 'https://pmg-chatbot.vercel.app',
+        changeOrigin: true,
+      },
     },
   },
   test: {
