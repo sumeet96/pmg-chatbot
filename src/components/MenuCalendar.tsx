@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { formatLocalDate } from '../lib/date';
 import { MenuItem } from '../types';
 
 export function MenuCalendar() {
@@ -18,8 +19,8 @@ export function MenuCalendar() {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
 
-    const firstDay = new Date(year, month, 1).toISOString().split('T')[0];
-    const lastDay = new Date(year, month + 1, 0).toISOString().split('T')[0];
+    const firstDay = formatLocalDate(new Date(year, month, 1));
+    const lastDay = formatLocalDate(new Date(year, month + 1, 0));
 
     const { data } = await supabase
       .from('menu_items')
@@ -58,7 +59,7 @@ export function MenuCalendar() {
 
   const getMenuForDate = (date: Date | null) => {
     if (!date) return [];
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatLocalDate(date);
     return menuItems.filter(item => item.date === dateStr);
   };
 

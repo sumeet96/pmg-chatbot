@@ -1,6 +1,7 @@
 import { useMemo, useState, FormEvent } from 'react';
 import { CalendarDays, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { formatLocalDate } from '../lib/date';
 import { useAuth } from '../context/AuthContext';
 
 interface WeeklyMenuFormProps {
@@ -24,20 +25,12 @@ const MEAL_TIMES: Record<MealType, { time_start: string; time_end: string }> = {
   dinner: { time_start: '20:00', time_end: '22:00' },
 };
 
-// Format a Date as a local YYYY-MM-DD (avoids UTC off-by-one from toISOString).
-function toISODate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
 // The next upcoming Monday (always in the future).
 function nextMonday(): string {
   const d = new Date();
   const diff = (8 - d.getDay()) % 7 || 7;
   d.setDate(d.getDate() + diff);
-  return toISODate(d);
+  return formatLocalDate(d);
 }
 
 export function WeeklyMenuForm({ onSuccess }: WeeklyMenuFormProps) {
@@ -48,7 +41,7 @@ export function WeeklyMenuForm({ onSuccess }: WeeklyMenuFormProps) {
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
 
-  const minDate = new Date().toISOString().split('T')[0];
+  const minDate = formatLocalDate(new Date());
 
   // The 7 dates of the selected week, derived from the start date.
   const days = useMemo(() => {
@@ -57,7 +50,7 @@ export function WeeklyMenuForm({ onSuccess }: WeeklyMenuFormProps) {
       const d = new Date(`${startDate}T00:00:00`);
       d.setDate(d.getDate() + i);
       return {
-        iso: toISODate(d),
+        iso: formatLocalDate(d),
         label: d.toLocaleDateString('en-US', {
           weekday: 'short',
           month: 'short',

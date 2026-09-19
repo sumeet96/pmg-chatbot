@@ -1,6 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { Plus, CheckCircle2, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { formatLocalDate } from '../lib/date';
 import { useAuth } from '../context/AuthContext';
 
 interface MenuFormProps {
@@ -58,7 +59,7 @@ export function MenuForm({ onSuccess }: MenuFormProps) {
     }
   };
 
-  const minDate = new Date().toISOString().split('T')[0];
+  const minDate = formatLocalDate(new Date());
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-md p-6">

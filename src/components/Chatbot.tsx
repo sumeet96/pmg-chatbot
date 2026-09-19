@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { formatLocalDate, parseLocalDate, todayLocalDate } from '../lib/date';
 import { MenuItem } from '../types';
 import { useAuth } from '../context/AuthContext';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -59,7 +60,7 @@ export function Chatbot({
   };
 
   const loadMenuData = async () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayLocalDate();
     const weekFromNow = new Date();
     weekFromNow.setDate(weekFromNow.getDate() + 7);
 
@@ -67,7 +68,7 @@ export function Chatbot({
       .from('menu_items')
       .select('*')
       .gte('date', today)
-      .lte('date', weekFromNow.toISOString().split('T')[0])
+      .lte('date', formatLocalDate(weekFromNow))
       .order('date')
       .order('meal_type');
 
@@ -108,7 +109,7 @@ export function Chatbot({
   };
 
   const getTodayMenu = () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayLocalDate();
     const todayItems = menuItems.filter(item => item.date === today);
 
     if (todayItems.length === 0) {
@@ -127,7 +128,7 @@ export function Chatbot({
   };
 
   const getMealInfo = (mealType: string) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayLocalDate();
     const meal = menuItems.find(item => item.date === today && item.meal_type === mealType);
 
     if (!meal) {
@@ -159,7 +160,7 @@ export function Chatbot({
     let response = "Here's the menu for the upcoming days:\n\n";
 
     uniqueDates.forEach(date => {
-      const dateObj = new Date(date);
+      const dateObj = parseLocalDate(date);
       const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
       response += `📅 ${dayName}:\n`;
 
@@ -238,7 +239,7 @@ export function Chatbot({
     const lines: string[] = [];
 
     uniqueDates.forEach(date => {
-      const dateObj = new Date(date);
+      const dateObj = parseLocalDate(date);
       const dayName = dateObj.toLocaleDateString('en-US', {
         weekday: 'long',
         month: 'short',
